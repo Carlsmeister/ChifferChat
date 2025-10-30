@@ -75,7 +75,7 @@
                         <!-- Default configuration for running with: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>se.mau.chifferchat/se.mau.chifferchat.HelloApplication</mainClass>
+                            <mainClass>se.mau.chifferchat/se.mau.chifferchat.ui.HelloApplication</mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>
                             <jlinkImageName>app</jlinkImageName>

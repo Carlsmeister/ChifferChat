@@ -1,4 +1,4 @@
-package se.mau.chifferchat;
+package se.mau.chifferchat.ui;
 
 import javafx.application.Application;
 
