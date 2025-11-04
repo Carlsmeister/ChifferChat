@@ -39,6 +39,8 @@ public class LoginController {
     public void initialize() {
         this.client = HelloApplication.getClient();
 
+        username.setOnAction(this::onLoginClick);
+        password.setOnAction(this::onLoginClick);
 
         loadNews();
 

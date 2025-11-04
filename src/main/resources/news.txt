@@ -1,3 +1,2 @@
 
-
- add news feed, GitHub link, and UI enhancements (2025-11-04)
+ Added news feed, GitHub link, and UI enhancements (2025-11-04)
