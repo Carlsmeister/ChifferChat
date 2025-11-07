@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -12,6 +13,8 @@ public class Server implements Runnable {
     private final ArrayList<ConnectionHandler> connections;
     private ServerSocket serverSocket;
     private ExecutorService threadPool;
+
+    private final HashMap<String, String> clientPublicKeys = new HashMap<>();
 
     private boolean listening = true;
 
@@ -77,5 +80,13 @@ public class Server implements Runnable {
 
     public void removeConnection(ConnectionHandler connection) {
         connections.remove(connection);
+    }
+
+    public String getPublicKey(String username) {
+        return clientPublicKeys.get(username);
+    }
+
+    public void addPublicKey(String username, String publicKey) {
+        clientPublicKeys.put(username, publicKey);
     }
 }

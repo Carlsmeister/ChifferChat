@@ -25,22 +25,35 @@ public class ConnectionHandler implements Runnable {
             in = new BufferedReader(new InputStreamReader(client.getInputStream()));
             out = new PrintWriter(client.getOutputStream(), true);
 
-            String userName = in.readLine();
+            String clientUsername = in.readLine();
 
-            out.println("Welcome " + userName + "!");
-            System.out.println(userName + " connected");
-            server.broadcastMessage(userName + " joined the chat!", this);
+            out.println("Welcome " + clientUsername + "!");
+            System.out.println(clientUsername + " connected");
+            server.broadcastMessage(clientUsername + " joined the chat!", this);
             String message;
 
             while ((message = in.readLine()) != null) {
+
+                if (message.startsWith("/pubkey ")) {
+                    String keyB64 = message.substring(8).trim();
+                    server.addPublicKey(clientUsername, keyB64);
+                    continue;
+                }
+                if (message.startsWith("/getkey ")) {
+                    String target = message.substring(8).trim();
+                    String key = server.getPublicKey(target);
+                    if (key != null) out.println("/key " + target + " " + key);
+                    else out.println("/error No key for " + target);
+                    continue;
+                }
                 if (message.startsWith("/quit")) {
-                    server.broadcastMessage(userName + " left the chat!", this);
-                    System.out.println(userName + " left the chat!");
+                    server.broadcastMessage(clientUsername + " left the chat!", this);
+                    System.out.println(clientUsername + " left the chat!");
                     shutdown();
-                } else {
-                    server.broadcastMessage(userName + ": " + message, this);
+                    break;
                 }
 
+                server.broadcastMessage(clientUsername + ": " + message, this);
             }
         } catch (IOException e) {
             shutdown();

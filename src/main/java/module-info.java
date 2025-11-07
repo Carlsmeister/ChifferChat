@@ -4,11 +4,12 @@ module se.mau.chifferchat {
     requires javafx.graphics;
     requires org.kordamp.bootstrapfx.core;
     requires org.kordamp.ikonli.javafx;
+    requires java.sql;
 
 
     exports se.mau.chifferchat.ui;
     //exports se.mau.chifferchat.client;
     //exports se.mau.chifferchat.server;
-    //exports se.mau.chifferchat.encryption;
+    //exports se.mau.chifferchat.crypto;
     opens se.mau.chifferchat.ui to javafx.fxml;
 }

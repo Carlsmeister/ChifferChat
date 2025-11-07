@@ -10,13 +10,21 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.kordamp.ikonli.javafx.FontIcon;
 import se.mau.chifferchat.client.Client;
+import se.mau.chifferchat.crypto.CryptoKeyGenerator;
+import se.mau.chifferchat.crypto.Encryption;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+import java.security.PublicKey;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CompletableFuture;
 
 public class ChatController {
 
@@ -34,6 +42,8 @@ public class ChatController {
     @FXML
     private ListView<String> userList;
     @FXML
+    public HBox userInfo;
+    @FXML
     private TextField messageField;
     @FXML
     private Button sendButton;
@@ -41,6 +51,7 @@ public class ChatController {
     private Button settingsButton;
     @FXML
     private Button logoutButton;
+
 
     @FXML
     public void initialize() {
@@ -55,6 +66,8 @@ public class ChatController {
         Platform.runLater(() -> messageField.requestFocus());
 
         startClock();
+
+        loadIcons();
 
         userList.getItems().addAll("Carl", "Alex", "Maya", "Evelyn");
         styleUserList();
@@ -145,14 +158,95 @@ public class ChatController {
         String message = messageField.getText().trim();
         if (message.isEmpty()) return;
 
-        if (client != null) {
-            client.sendMessage(message);
-        }
+        String targetUser = getSelectedUser();
 
-        String label = (client.getUsername() != null ? "You" : "Me") + ": " + message;
-        chatList.getItems().add(new ChatMessage(label, LocalDateTime.now(), MessageType.SENT));
-        autoScroll();
-        messageField.clear();
+        if (targetUser != null) {
+            PublicKey receiverPublicKey = client.getPublicKeyForUser(targetUser);
+
+            if (receiverPublicKey == null) {
+                client.sendMessage("/getkey " + targetUser);
+
+                waitForPublicKey(targetUser, 1000) // Wait up to 1 second
+                        .thenAcceptAsync(pubKey -> {
+                            if (pubKey != null) {
+                                encryptAndSendMessage(message, targetUser, pubKey);
+                            } else {
+                                appendSystemMessage("Cannot send: No public key for " + targetUser);
+                            }
+                        }, Platform::runLater)
+                        .exceptionally(ex -> {
+                            appendSystemMessage("Error fetching key: " + ex.getMessage());
+                            return null;
+                        });
+            } else {
+                encryptAndSendMessage(message, targetUser, receiverPublicKey);
+            }
+
+            String label = "You: " + message;
+            chatList.getItems().add(new ChatMessage(label, LocalDateTime.now(), MessageType.SENT));
+            autoScroll();
+            messageField.clear();
+
+        } else {
+            client.sendMessage(message);
+
+            String label = "You: " + message;
+            chatList.getItems().add(new ChatMessage(label, LocalDateTime.now(), MessageType.SENT));
+            autoScroll();
+            messageField.clear();
+        }
+    }
+
+    private CompletableFuture<PublicKey> waitForPublicKey(String username, long maxWaitMs) {
+        return CompletableFuture.supplyAsync(() -> {
+            long startTime = System.currentTimeMillis();
+            int pollInterval = 50;
+
+            while (System.currentTimeMillis() - startTime < maxWaitMs) {
+                PublicKey key = client.getPublicKeyForUser(username);
+                if (key != null) {
+                    return key;
+                }
+
+                try {
+                    Thread.sleep(pollInterval);
+                    pollInterval = Math.min(pollInterval + 25, 200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return null;
+                }
+            }
+            return null;
+        });
+    }
+
+    private void encryptAndSendMessage(String message, String targetUser, PublicKey receiverPublicKey) {
+        try {
+            SecretKey aesKey = CryptoKeyGenerator.generateAESKey();
+            GCMParameterSpec iv = CryptoKeyGenerator.generateIv();
+
+            String encryptedMessage = Encryption.encryptAES(message, aesKey, iv);
+
+            String encryptedAESKey = Encryption.encryptAESKeyRSA(aesKey, receiverPublicKey);
+
+            String ivBase64 = Base64.getEncoder().encodeToString(iv.getIV());
+
+            String fullMessage = encryptedAESKey + ":" + ivBase64 + ":" + encryptedMessage;
+
+            client.sendMessage(fullMessage);
+
+        } catch (Exception e) {
+            System.err.println("Encryption failed: " + e.getMessage());
+            Platform.runLater(() -> appendSystemMessage("Failed to encrypt message"));
+        }
+    }
+
+    private String getSelectedUser() {
+        String selected = userList.getSelectionModel().getSelectedItem();
+        if (selected != null && !selected.equals(client.getUsername())) {
+            return selected;
+        }
+        return null;
     }
 
     public void receiveMessage(String message) {
@@ -220,6 +314,14 @@ public class ChatController {
             SceneManager.switchScene("/se/mau/chifferchat/login-view.fxml", "ChifferChat – Login");
         } catch (Exception ignored) {
         }
+    }
+
+    private void loadIcons() {
+        FontIcon settingsIcon = new FontIcon("fas-cog");
+        settingsIcon.setIconSize(20);
+        settingsIcon.setIconColor(javafx.scene.paint.Color.DARKORANGE);
+        userInfo.getChildren().add(3, settingsIcon);
+        settingsIcon.setOnMouseClicked(e -> onSettings());
     }
 
     private enum MessageType {SENT, RECEIVED, SYSTEM}

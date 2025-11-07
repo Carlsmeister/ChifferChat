@@ -86,7 +86,7 @@ public class LoginController {
         String user = username.getText();
         String pass = password.getText();
 
-        if ((user.equals("Carl") || user.equals("Becca")) && pass.equals("12345")) {
+        if ((user.equals("Carl") || user.equals("Becca") || user.equals("Calle")) && pass.equals("12345")) {
             welcomeText.setText("Logging in...");
             client.setUsername(user);
             client.setLoggedIn(true);
